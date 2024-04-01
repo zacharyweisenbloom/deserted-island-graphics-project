@@ -1,0 +1,12 @@
+# Blender 3.5.1 MTL File: 'low poly seagull.blend'
+# www.blender.org
+
+newmtl Seagull.TN
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 0.876531 0.850929
+Ks 0.126016 0.126016 0.126016
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2

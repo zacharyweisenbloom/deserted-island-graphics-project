@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>WebGL Texturing</title>
+</head>
+<body>
+	<canvas width="500" height="500" id="webgl-canvas"></canvas>
+
+    <script src="../common/webgl-debug.js"></script>
+    <script src="../common/webgl-lint.js"></script>
+    <script src="../common/math.js"></script>
+    <script src="../common/gl-utils.js"></script>
+    <script src="../common/input.js"></script>
+    <script src="../common/renderloop.js"></script>
+    <script src="../common/camera.js"></script>
+    <script src="../common/grid.js"></script>
+    <script src="../common/dat.gui.min.js"></script>
+    <script src="../common/stats.min.js"></script>
+    <script src="../common/objparser.js"></script>
+
+
+    <script src="renderer.js"></script>
+    <script src="simpleRender.js"></script>
+    <script src="renderer_sky_box.js"></script>
+    <script src="point_light_renderer.js"></script>
+    <script src="modeltransform.js"></script>
+    <script src="primitives.js"></script>
+    <script src="skybox.js"></script>
+    <script src="howler.js"></script>
+    <button id="startbutton" width="300" height="300" onclick="load()" style="
+    background-color: #111111; border: none; color: white; padding: 50px 50px; text-align: center;
+    text-decoration: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 50px;">Click here to start the animation</button>
+
+    <script type="text/javascript">
+
+
+
+        "use strict"; // use strict javascript compiling
+
+        //--------------------------------------------------
+        // Global Cashes
+        //--------------------------------------------------
+        var MeshCache = {}; // here all mesh objects are stored, see GLUtils.createMesh() for details on how a mesh is added.
+        var TextureCache = {}; // here all texture objects are stored, see GLUtils.loadTexture() for details on how a texture is added.
+
+        // -----------------------------------------
+        // Global variables
+        // -----------------------------------------
+        var gl;
+        var canvas;
+        var renderLoop;
+
+        var g_camera;
+        var g_cameraController;
+        var skybox;
+
+        var ground;
+        var houseBase, houseRoof, door;
+        var treeTrunk, treeCrown;
+        var bunny; 
+        var g_grid;
+        var personBody, personArms, personHead;
+        var island;
+        var palm_tree;
+        var palm_tree_bottom;
+        var whiteMaterial
+
+
+        var g_renderer;
+        var g_renderer_sky;
+        var g_point_light_renderer;
+        var g_simpleShader;
+        var music;
+        var campfire;
+        var seagull;
+        var fire;
+        var circleRadius = 20;
+        var ship;
+  
+
+
+        var gui_data = {mute: false};
+        var gui = new dat.GUI({ width: 100 } );
+        gui.add(gui_data, "mute").onChange(function(value){music?.mute(value);});
+
+
+        // lighting
+        
+        var g_lightingData_dir = {
+            directionalLight: new V3(-0.2, -0.5, -0.5), // light direction
+            directionalColor: new V3(1, 1, 1), // light color by default white
+            ambientColor: new V3(0.2, 0.2, 0.2) // dark gray
+        }
+        
+        var g_lightingData = {
+            lightDirX: -1,
+            lightDirY: -1,
+            lightDirZ: -0.5,
+            lightColorR: 1.0,
+            lightColorG: .4,
+            lightColorB: 0
+        }
+
+        let lightDirection = new V3(g_lightingData.lightDirX, g_lightingData.lightDirY, g_lightingData.lightDirZ).normalize();
+
+
+        // This will execute the setup function once the whole document has been loaded.
+        window.addEventListener("load",function(){
+            setup();
+        });
+
+        function setup(){
+            canvas = document.getElementById("webgl-canvas");
+            gl = GLUtils.createWebGLInstance(canvas, true, true); // fullscreen = true, debugging = true
+            gl.clearColor(0.85, 0.95, 0.9, 1); // set clear color (RGBA)
+            gl.fitScreen();
+            gl.enable(gl.DEPTH_TEST);
+            gl.depthFunc(gl.LEQUAL);
+            
+
+            // our shader files are loaded here. Once completed, init is called
+            // for now there is only the standardShader, but you can add more by
+            // simply adding another path into the array shaderPaths.
+            let shaderPaths = ["shaders/standardShader.glsl", "shaders/skyboxShader.glsl","shaders/point_light_shader.glsl", "shaders/simpleShader.glsl"]; 
+            GLUtils.loadShaders(shaderPaths, init);
+        }
+
+        function init(){
+            Input.initialize(canvas);
+
+            g_renderer = new Renderer("standardShader");
+            g_point_light_renderer = new PointLightRenderer("point_light_shader");
+            g_simpleShader = new simpleRender("simpleShader");
+
+            g_camera = new PerspectiveCamera(45, 0.1, 1000, canvas.width / canvas.height);
+            g_camera.setPositionRotation(new V3(100,100,100), new V3(45,45,45));
+
+            g_cameraController = new OrbiterCameraController(canvas, g_camera);
+
+            //g_cameraController.target.set(0,0,0);
+            
+            GLUtils.loadCubeMap("skyCubeMap", 
+            "ressources/Left+X.png",
+            "ressources/Right-X.png",
+            "ressources/Up+Y.png",
+            "ressources/Down-Y.png",
+            "ressources/Front+Z.png",
+            "ressources/Back-Z.png"
+            )
+        
+
+            //TODO: load texture from ressources folder to TextureCache
+            GLUtils.loadTexture("uv-test", "ressources/uv-test.png");
+            //TODO: add mainTexture property with loaded texture to material
+            GLUtils.loadTexture("stone-wall", "ressources/TCom_Wall_Stone3_2x2_512_albedo.png");
+            GLUtils.loadTexture("grass", "ressources/TCom_Grass12_512_albedo.png");
+            GLUtils.loadTexture("wood", "ressources/wood.png");
+            GLUtils.loadTexture("oak", "ressources/oak.png");
+            GLUtils.loadTexture("rock", "ressources/rock.png");
+            GLUtils.loadTexture("ground", "ressources/ground.png");
+            GLUtils.loadTexture("top", "ressources/tree_top.png");
+            GLUtils.loadTexture("bunny_mat", "ressources/bunny.jpg");
+            GLUtils.loadTexture("sand", "ressources/sand.jpg");
+            GLUtils.loadTexture("water", "ressources/water.png");
+            GLUtils.loadTexture("white", "ressources/white.jpeg");
+            GLUtils.loadTexture("fire", "ressources/fire.jpeg");
+            GLUtils.loadTexture("leaf", "ressources/leaf.jpeg");
+
+
+            let skyboxMat = { tint: new V3(1, 1, 1), mainTexture: "wood", cubeMap: "skyCubeMap"};
+            skybox = new Skybox("skyboxShader", "skyCubeMap");
+
+            // Material with white tint color
+            let uvTestMat = {tint: new V3(1,1,1), mainTexture: "uv-test", shininess: 25};
+            let stone_wall = {tint: new V3(1,1,1), mainTexture: "stone-wall", shininess: 25};
+            let grass = {tint: new V3(1,1,1), mainTexture: "grass", shininess: 25};
+            let wood = {tint: new V3(1,1,1), mainTexture: "wood", shininess: 25};
+            let oak = {tint: new V3(1,1,1), mainTexture: "oak", shininess: 25};
+            let rock = {tint: new V3(1,1,1), mainTexture: "rock", shininess: 25};
+            let ground_mat = {tint: new V3(1,1,1), mainTexture: "ground", shininess: 25};
+            let top = {tint: new V3(1,1,1), mainTexture: "top", shininess: 25};
+            let bunny_mat = {tint: new V3(1,1,1), mainTexture: "bunny_mat", shininess: 25};
+            let shirtMat  = {tint: new V3(0.71,0.85,0.97), shininess: 25};  // light blue
+            let headMat   = {tint: new V3(1,1,1), shininess: 25};  // dark blue
+            let sand = {tint: new V3(1,1,1), mainTexture: "sand", shininess: 5};
+            let water = {tint: new V3(1,1,1), mainTexture: "water", shininess: 0};
+            let whiteMaterial = { tint: new V3(1, 1, 1), mainTexture: "white", shininess: 25 };
+            let fire_mat = { tint: new V3(10, 10, 10), mainTexture: "fire", shininess: 0 };
+            let leaf = { tint: new V3(1, 1, 1), mainTexture: "leaf", shininess: 25 };
+
+
+
+            
+
+
+            
+
+
+            ground      = new ModelTransform(Primitives.Quad.getMesh(),     water);
+            houseBase   = new ModelTransform(Primitives.Cube.getMesh(),     stone_wall);
+            houseRoof   = new ModelTransform(Primitives.Pyramid.getMesh(),  rock);
+            door        = new ModelTransform(Primitives.Cube.getMesh(),     wood); 
+            treeTrunk   = new ModelTransform(Primitives.Cylinder.getMesh(), oak);
+            treeCrown   = new ModelTransform(Primitives.Sphere.getMesh(),  sand );
+            fire   = new ModelTransform(Primitives.Sphere.getMesh(),  fire_mat );
+            /*
+            personBody  = new ModelTransform(Primitives.Cube.getMesh(),     wood);
+            personArms  = new ModelTransform(Primitives.Cube.getMesh(),     wood);
+            personHead  = new ModelTransform(Primitives.Sphere.getMesh(),   wood);
+
+            personBody.position.set(0, 0.5, 0);
+            personArms.position.set(0, 0.5, 0);
+            personHead.position.set(0, 1, 0);
+            personBody.scale.set(0.3, 1, 0.3);
+            personArms.scale.set(1, 0.2, 0.2);
+            personHead.scale.set(0.3, 0.3, 0.3);
+            personBody.rotation.set(0, 45, 0);
+            personArms.rotation.set(0, 45, 0);
+            personHead.rotation.set(0, 45, 0);
+            */
+
+
+            ground.scale.set(1000,1000,1);
+            ground.rotation.set(-90,0,0);
+            ground.position.set(0,4,0); // To avoid ugly overlap with house and tree on the bottom
+            /*
+            houseBase.position.set(2,1,-1);
+            houseBase.scale.set(2.5,2,2);
+            houseRoof.position.set(2,2,-1);
+            houseRoof.scale.set(3,2.5,2.5);
+            door.position.set(2,0.75,0);
+            door.scale.set(0.75,1.5,0.5);
+            */
+
+            treeTrunk.position.set(0,8,0);
+            treeTrunk.scale.set(.5,5,.5);
+            treeCrown.position.set(-3,3,0);
+            treeCrown.scale.set(20, 3.5, 20);
+            fire.position.set(-10,6.6,0)
+
+            let bunny_mesh = OBJLoader.getMesh("bunny_mesh", "ressources/bunny.obj");
+            bunny = new ModelTransform(bunny_mesh, bunny_mat);
+            bunny.position.set(-6,6.5,-2);
+            bunny.scale.set(1,1,1);
+            
+            let campfire_mesh = OBJLoader.getMesh("campfire_mesh", "ressources/campfire.obj");
+            campfire = new ModelTransform(campfire_mesh, wood);
+            campfire.position.set(-10,6.2,0);
+            campfire.scale.set(.05,.05,.05);
+            
+            let seagull_mesh = OBJLoader.getMesh("seagull", "ressources/seagull.obj");
+            seagull = new ModelTransform(seagull_mesh, whiteMaterial);
+            seagull.position.set(0,15,5);
+            seagull.scale.set(10,10,10);
+            
+            let ship_mesh = OBJLoader.getMesh("ship", "ressources/med_boat.obj");
+            ship = new ModelTransform(ship_mesh, wood);
+            ship.position.set(-100,3,500);
+            ship.scale.set(.1,.1,.1);
+            ship.rotation.set(0,180,0);
+
+            let palm_tree_mesh = OBJLoader.getMesh("palm_tree_mesh", "ressources/final_tree_palm.obj");
+            palm_tree = new ModelTransform(palm_tree_mesh, leaf);
+            palm_tree.position.set(0,6,0);
+            palm_tree.scale.set(1,1,1);
+            /*
+            let palm_tree_mesh_bottom = OBJLoader.getMesh("palm_tree_mesh", "ressources/palm_top_final.obj");
+            palm_tree_bottom = new ModelTransform(palm_tree_mesh_bottom, wood);
+            palm_tree_bottom.position.set(0,0,0);
+            //palm_tree_bottom.scale.set(1,1,1);
+            */
+
+            g_grid = new GridAxis();
+
+
+            music = new Howl({
+                src: ['ressources/sound_effects.mp3'],
+                html5: true // use streaming audio if possible
+            });
+            music.play();
+            music.mute(gui_data.mute);
+
+            renderLoop = new RenderLoop(draw).start();
+        }
+
+        function draw(deltaTime){
+            Input.update();
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            g_cameraController.update();
+
+            
+
+            ground.update();
+            treeTrunk.update();
+            treeCrown.update();
+            bunny.update();
+            palm_tree.update();
+            campfire.update();
+            seagull.update();
+            fire.update();
+            ship.update();
+   
+            updatePerson(deltaTime);
+
+            const angularSpeed = 2 * Math.PI * .1; // radians per second
+            const circleRadius = 20; // radius of the circle
+
+            // Calculate the new position in a circle
+            const angle = angularSpeed * (performance.now() * 0.001);
+            const x = circleRadius * Math.cos(angle);
+            const z = circleRadius * Math.sin(angle);
+
+            seagull.position.x = x;
+            seagull.position.z = z;
+
+            seagull.rotation.y = angle;
+
+
+
+
+
+            let shaderData = {};
+            let lightingData = {};
+
+            skybox.draw(g_camera);
+            lightingData.lightDirection = new V3(g_lightingData.lightDirX,
+                                                 g_lightingData.lightDirY,
+                                                 g_lightingData.lightDirZ);
+            lightingData.lightColor = new V3(g_lightingData.lightColorR,
+                                                 g_lightingData.lightColorG,
+                                                 g_lightingData.lightColorB);
+            lightingData.dirDirection = g_lightingData_dir.directionalLight;
+            lightingData.dirColor = g_lightingData_dir.directionalColor;
+            
+
+            lightingData.lightPosition = fire.position; 
+            shaderData.lightingData = lightingData; 
+
+
+
+
+            
+            g_point_light_renderer.drawModel(ground, g_camera, shaderData);
+
+            g_point_light_renderer.drawModel(treeTrunk, g_camera, shaderData);
+            g_point_light_renderer.drawModel(treeCrown, g_camera, shaderData);
+            g_point_light_renderer.drawModel(bunny, g_camera, shaderData);
+            g_point_light_renderer.drawModel(ship, g_camera, shaderData);
+
+            g_point_light_renderer.drawModel(palm_tree, g_camera, shaderData);
+            g_point_light_renderer.drawModel(campfire, g_camera, shaderData);
+            g_point_light_renderer.drawModel(seagull, g_camera, shaderData);
+            g_point_light_renderer.drawModel(fire, g_camera, shaderData);
+
+            g_grid.draw(g_camera);
+        }
+
+        function updatePerson(deltaTime) {
+            let speed = 4;
+            let movement = 0;
+            let rotation = 0;
+            if(Input.keyHold("arrowup")){
+                movement = 1;
+            }
+            if(Input.keyHold("arrowdown")){
+                movement = -1;
+            }
+            if(Input.keyHold("arrowleft")){
+                rotation = 1;
+            }
+            if(Input.keyHold("arrowright")){
+                rotation = -1;
+            }
+            let movementVector = bunny.localForward;
+            movementVector.multiplyScalar(deltaTime * speed * movement); // scale according to speed and frameRate
+
+            bunny.position.addV(movementVector)
+
+            bunny.rotation.y += deltaTime * 270 * rotation;
+
+
+        }
+
+        function load(){
+            var button = document.getElementById("startbutton");
+            button.remove();
+            //setup();
+        }
+    </script>
+</body>
+</html>
