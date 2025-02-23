@@ -56,7 +56,7 @@
         var g_cameraController;
         var skybox;
 
-        var ground;
+        var water_floor;
         var houseBase, houseRoof, door;
         var treeTrunk, treeCrown;
         var bunny; 
@@ -179,15 +179,14 @@
             let wood = {tint: new V3(1,1,1), mainTexture: "wood", shininess: 25};
             let oak = {tint: new V3(1,1,1), mainTexture: "oak", shininess: 25};
             let rock = {tint: new V3(1,1,1), mainTexture: "rock", shininess: 25};
-            let ground_mat = {tint: new V3(1,1,1), mainTexture: "ground", shininess: 25};
             let top = {tint: new V3(1,1,1), mainTexture: "top", shininess: 25};
             let bunny_mat = {tint: new V3(1,1,1), mainTexture: "bunny_mat", shininess: 25};
             let shirtMat  = {tint: new V3(0.71,0.85,0.97), shininess: 25};  // light blue
             let headMat   = {tint: new V3(1,1,1), shininess: 25};  // dark blue
             let sand = {tint: new V3(1,1,1), mainTexture: "sand", shininess: 5};
-            let water = {tint: new V3(1,1,1), mainTexture: "water", shininess: 0};
+            let water = {tint: new V3(1,1,1), mainTexture: "water", shininess: 1};
             let whiteMaterial = { tint: new V3(1, 1, 1), mainTexture: "white", shininess: 25 };
-            let fire_mat = { tint: new V3(10, 10, 10), mainTexture: "fire", shininess: 0 };
+            let fire_mat = { tint: new V3(10, 10, 10), mainTexture: "fire", shininess: 1 };
             let leaf = { tint: new V3(1, 1, 1), mainTexture: "leaf", shininess: 25 };
 
 
@@ -198,7 +197,7 @@
             
 
 
-            ground      = new ModelTransform(Primitives.Quad.getMesh(),     water);
+            water_floor      = new ModelTransform(Primitives.Quad.getMesh(),     water);
             houseBase   = new ModelTransform(Primitives.Cube.getMesh(),     stone_wall);
             houseRoof   = new ModelTransform(Primitives.Pyramid.getMesh(),  rock);
             door        = new ModelTransform(Primitives.Cube.getMesh(),     wood); 
@@ -222,9 +221,9 @@
             */
 
 
-            ground.scale.set(1000,1000,1);
-            ground.rotation.set(-90,0,0);
-            ground.position.set(0,4,0); // To avoid ugly overlap with house and tree on the bottom
+            water_floor.scale.set(1000,1000,1);
+            water_floor.rotation.set(-90,0,0);
+            water_floor.position.set(0,4,0); // To avoid ugly overlap with house and tree on the bottom
             /*
             houseBase.position.set(2,1,-1);
             houseBase.scale.set(2.5,2,2);
@@ -257,7 +256,7 @@
             
             let ship_mesh = OBJLoader.getMesh("ship", "ressources/med_boat.obj");
             ship = new ModelTransform(ship_mesh, wood);
-            ship.position.set(-100,3,500);
+            ship.position.set(-100,1,500);
             ship.scale.set(.1,.1,.1);
             ship.rotation.set(0,180,0);
 
@@ -292,7 +291,7 @@
 
             
 
-            ground.update();
+            
             treeTrunk.update();
             treeCrown.update();
             bunny.update();
@@ -301,6 +300,7 @@
             seagull.update();
             fire.update();
             ship.update();
+            water_floor.update();
    
             updatePerson(deltaTime);
 
@@ -342,7 +342,7 @@
 
 
             
-            g_point_light_renderer.drawModel(ground, g_camera, shaderData);
+            g_point_light_renderer.drawModel(water_floor, g_camera, shaderData);
 
             g_point_light_renderer.drawModel(treeTrunk, g_camera, shaderData);
             g_point_light_renderer.drawModel(treeCrown, g_camera, shaderData);
@@ -391,3 +391,4 @@
     </script>
 </body>
 </html>
+
